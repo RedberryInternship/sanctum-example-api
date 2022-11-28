@@ -2,8 +2,11 @@
 
 namespace Database\Seeders;
 
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\Character;
+use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Http\File;
+use Illuminate\Support\Facades\Storage;
 
 class DatabaseSeeder extends Seeder
 {
@@ -14,11 +17,74 @@ class DatabaseSeeder extends Seeder
      */
     public function run()
     {
-        // \App\Models\User::factory(10)->create();
+        User::factory()->create([
+            'name' => 'giuna',
+            'email' => 'giuna@redberry.ge',
+            'password' => bcrypt('password'),
+        ]);
 
-        // \App\Models\User::factory()->create([
-        //     'name' => 'Test User',
-        //     'email' => 'test@example.com',
-        // ]);
+        User::factory()->create([
+            'name' => 'tornike',
+            'email' => 'tornikek@redberry.ge',
+            'password' => bcrypt('password'),
+        ]);
+
+        $images = collect(
+            [
+                [
+                    'name' => 'Atreus',
+                    'image' => 'atreus.webp',
+                ],
+                [
+                    'name' => 'Baldur',
+                    'image' => 'baldur.webp',
+                ],
+                [
+                    'name' => 'Brok',
+                    'image' => 'brok.jpg',
+                ],
+                [
+                    'name' => 'Fenrir',
+                    'image' => 'fenrir.jpg',
+                ],
+                [
+                    'name' => 'Freya',
+                    'image' => 'freya.webp',
+                ],
+                [
+                    'name' => 'Jormungandr',
+                    'image' => 'jormungandr.jpg', 
+                ],
+                [
+                    'name' => 'Kratos',
+                    'image' => 'kratos.jpg',
+                ],
+                [
+                    'name' => 'Odin',
+                    'image' => 'odin.webp',
+                ],
+                [
+                    'name' => 'Sindri',
+                    'image' => 'sindri.webp',
+                ],
+                [
+                    'name' => 'Thor',
+                    'image' => 'thor.webp',
+                ],
+                [
+                    'name' => 'Tyr',
+                    'image' => 'tyr.webp',
+                ],
+            ]
+        )->map(function ($data) {
+            $data['image'] = new File(storage_path('app/original-pictures/' . $data['image']));
+            return $data;
+        })->each(function($data) {
+            Character::factory()->create([
+                'name' => $data['name'],
+                'image' => Storage::put('/characters', $data['image']),
+                'likes' => 0,
+            ]);
+        });
     }
 }
