@@ -1,9 +1,8 @@
-FROM composer:2.2.9 as VendorBuild
+FROM composer:2 as VendorBuild
 
 WORKDIR /app
 
-COPY composer.json ./
-COPY composer.lock ./
+COPY composer.* ./
 COPY auth.json ./
 
 RUN composer install --no-autoloader
@@ -11,6 +10,8 @@ RUN composer install --no-autoloader
 COPY . ./
 
 RUN composer dump-autoload
+
+RUN rm auth.json
 
 FROM php:8.1-cli
 
@@ -26,6 +27,6 @@ WORKDIR /app
 
 COPY --from=VendorBuild ./app .
 
-EXPOSE 8000
+EXPOSE 8080
 
 CMD [ "php", "artisan", "octane:start", "--host=0.0.0.0"]
