@@ -1,0 +1,74 @@
+name: Build Docker Image
+
+concurrency: ${{ github.ref_name }}
+
+on:
+  workflow_dispatch:
+  push:
+
+env:
+  AWS_REGION: eu-central-1
+  DOCKER_REGISTRY_URL: 744716175651.dkr.ecr.eu-central-1.amazonaws.com
+  DOCKER_BUILDKIT: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set environment variables
+        run: |
+          echo "REPOSITORY_NAME=$(cut -d '/' -f 2 <<< $GITHUB_REPOSITORY)" >> $GITHUB_ENV
+
+          # Normalize branch name
+          REF_SLUG=$(sed 's/[^0-9a-zA-Z]/-/g' <<< $GITHUB_REF_NAME)
+
+          if [ "$GITHUB_REF_TYPE" = "branch" ]
+          then
+            IMAGE_TAG=$REF_SLUG-$(date +%Y%m%d%H%M%S)
+          else # Tag
+            IMAGE_TAG=$REF_SLUG
+          fi
+
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "REF_SLUG=$REF_SLUG" >> $GITHUB_ENV
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: docker/login-action@v2
+        with:
+          registry: ${{ env.DOCKER_REGISTRY_URL }}
+          username: ${{ secrets.AWS_KEY_ID }}
+          password: ${{ secrets.AWS_KEY }}
+
+      - uses: actions/checkout@v3
+
+      - name: Create auth.json file
+        run: |
+          cat <<EOF > auth.json
+          {
+              "http-basic": {
+                  "nova.laravel.com": {
+                      "username": "${{ secrets.NOVA_USERNAME }}",
+                      "password": "${{ secrets.NOVA_PASSWORD }}"
+                  }
+              }
+          }
+          EOF
+
+      - name: Build run image
+        run: docker build -t $DOCKER_REGISTRY_URL/$REPOSITORY_NAME:$IMAGE_TAG .
+
+      - name: Push image
+        run: |
+          docker push $DOCKER_REGISTRY_URL/$REPOSITORY_NAME:$IMAGE_TAG
+
+      # - name: Delete all but last five tags
+      #   run: |
+      #     manifests_to_delete=$(doctl registry repository list-tags $REPOSITORY_NAME | grep $REF_SLUG  | sort -r | tail +6 | rev | cut -d ' ' -f 1 | rev | tr '\n' ' ')
+      #     doctl registry repository delete-manifest -f $REPOSITORY_NAME-build $manifests_to_delete || true

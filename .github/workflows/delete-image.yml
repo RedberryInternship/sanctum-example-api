@@ -1,0 +1,49 @@
+name: Delete Docker Images
+
+concurrency: ${{ github.event.inputs.ref_name || github.event.ref }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref_name:
+        description: Deleted ref
+        type: string
+        required: true
+  delete:
+
+env:
+  DOCKER_REGISTRY_URL: registry.digitalocean.com
+  DOCKER_REPOSITORY: redberry
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set environment variables
+        run: |
+          echo "REPOSITORY_NAME=$(cut -d '/' -f 2 <<< $GITHUB_REPOSITORY)" >> $GITHUB_ENV
+
+          if [ -n "${{ github.event.inputs.ref_name }}" ]
+          then
+            REF_NAME="${{ github.event.inputs.ref_name }}"
+          else
+            REF_NAME="${{ github.event.ref }}"
+          fi
+
+          echo "REF_NAME=$REF_NAME" >> $GITHUB_ENV
+          echo "REF_SLUG=$(sed 's/[^0-9a-zA-Z]/-/g' <<< $REF_NAME)" >> $GITHUB_ENV
+
+      - uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DO_API_KEY }}
+
+      - name: Delete run images
+        run: |
+          manifests_to_delete=$(doctl registry repository list-tags $REPOSITORY_NAME-run | grep $REF_SLUG | rev | cut -d ' ' -f 1 | rev | tr '\n' ' ')
+          doctl registry repository delete-manifest -f $REPOSITORY_NAME-run $manifests_to_delete || true
+
+      - name: Delete build images
+        run: |
+          manifests_to_delete=$(doctl registry repository list-tags $REPOSITORY_NAME-build | grep $REF_SLUG | rev | cut -d ' ' -f 1 | rev | tr '\n' ' ')
+          doctl registry repository delete-manifest -f $REPOSITORY_NAME-build $manifests_to_delete || true
