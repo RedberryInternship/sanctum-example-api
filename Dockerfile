@@ -5,7 +5,7 @@ WORKDIR /app
 COPY composer.* ./
 COPY auth.json ./
 
-RUN composer install --no-autoloader
+RUN composer install --no-autoloader --no-scripts
 
 COPY . ./
 
