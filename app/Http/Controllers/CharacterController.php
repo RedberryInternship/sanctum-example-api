@@ -18,4 +18,19 @@ class CharacterController extends Controller
             ];
         });
     }
+
+    public function store()
+    {
+        $data = request()->validate([
+            'name' => 'required|min:3',
+            'image' => 'required|image',
+        ]);
+
+        Character::create([
+            'name' => $data['name'],
+            'image' => request()->file('image')->store('characters'),
+        ]);
+
+        return response('', 201);
+    }
 }
